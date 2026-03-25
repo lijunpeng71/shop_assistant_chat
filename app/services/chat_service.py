@@ -6,6 +6,8 @@
 
 from typing import Dict, Optional, Any, List
 
+from app.modules.llm import ChatEngine
+
 # 优先使用带插件支持的引擎
 try:
     from backend.modules.llm.core.llm_with_plugins import EmotionalChatEngineWithPlugins
@@ -53,6 +55,10 @@ class ChatService:
         """
         初始化聊天服务
         """
+        try:
+            self.chat_engine = ChatEngine()
+        except Exception as e:
+            print(f"⚠ 引擎初始化失败: {e}")
 
     async def chat(self, request: ChatRequest) -> ChatResponse:
         """
@@ -68,9 +74,8 @@ class ChatService:
         # 生成会话ID（如果没有）
         if not request.session_id:
             request.session_id = str(uuid.uuid4())
-        else:
-            # 使用原有引擎（无记忆）
-            return self.chat_engine.chat(request)
+        # 使用原有引擎（无记忆）
+        return self.chat_engine.chat(request)
 
     async def _chat_with_memory(self, request: ChatRequest) -> ChatResponse:
         """使用记忆系统的聊天"""

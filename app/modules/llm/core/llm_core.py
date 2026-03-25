@@ -3,25 +3,10 @@
 简化版LangChain聊天引擎（支持LCEL表达式，Python 3.10+）
 """
 import os
-import json
 import uuid
-from typing import List, Dict, Any, Optional
-from datetime import datetime
-import requests
-
-# 导入 LangChain (Python 3.10+, langchain 0.2.x+)
-try:
-    from langchain_openai import ChatOpenAI
-    from langchain_core.prompts import ChatPromptTemplate
-    from langchain_core.output_parsers import StrOutputParser
-
-    LANGCHAIN_AVAILABLE = True
-except ImportError:
-    LANGCHAIN_AVAILABLE = False
-    ChatOpenAI = None
-    ChatPromptTemplate = None
-    StrOutputParser = None
-    print("提示: LangChain 模块未安装，将使用传统 HTTP 请求方式")
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
 # 数据库和模型
 from app.common.global_models import ChatRequest, ChatResponse
@@ -33,51 +18,28 @@ class ChatEngine:
         self.api_key = os.getenv("LLM_API_KEY") or os.getenv("DASHSCOPE_API_KEY") or os.getenv("OPENAI_API_KEY")
         self.api_base_url = os.getenv("LLM_BASE_URL") or os.getenv("API_BASE_URL", "https://api.openai.com/v1")
         self.model = os.getenv("DEFAULT_MODEL", "qwen-plus")
+        try:
+            # 1. 初始化 OpenAI 模型
+            self.llm = ChatOpenAI(
+                model=self.model,
+                temperature=0.7,
+                api_key=self.api_key,
+                base_url=self.api_base_url
+            )
 
-        if not self.api_key:
-            print("警告: API_KEY 未设置，将使用本地fallback模式")
-            self.api_key = None
+            # 2. 定义 AI 人格与行为准则（使用完整的心语Prompt）
+            self.template = """用户：{{input}} ："""
 
-        # 初始化 LangChain 组件（LCEL 表达式）- 如果可用
-        if self.api_key and LANGCHAIN_AVAILABLE:
-            try:
-                # 1. 初始化 OpenAI 模型
-                self.llm = ChatOpenAI(
-                    model=self.model,
-                    temperature=0.7,
-                    api_key=self.api_key,
-                    base_url=self.api_base_url
-                )
-
-                # 2. 定义 AI 人格与行为准则（使用完整的心语Prompt）
-                self.template = """用户：{{input}} ："""
-
-                # 3. 创建提示模板和链（LCEL表达式）
-                self.prompt = ChatPromptTemplate.from_template(self.template)
-                self.output_parser = StrOutputParser()
-                # 构建链：chain = prompt | model | output_parser
-                self.chain = self.prompt | self.llm | self.output_parser
-                print("✓ LangChain LCEL 链初始化成功")
-            except Exception as e:
-                print("警告: LangChain 初始化失败，将使用传统方式: {}".format(e))
-                self.llm = None
-                self.chain = None
-        else:
+            # 3. 创建提示模板和链（LCEL表达式）
+            self.prompt = ChatPromptTemplate.from_template(self.template)
+            self.output_parser = StrOutputParser()
+            # 构建链：chain = prompt | model | output_parser
+            self.chain = self.prompt | self.llm | self.output_parser
+            print("✓ LangChain LCEL 链初始化成功")
+        except Exception as e:
+            print("警告: LangChain 初始化失败，将使用传统方式: {}".format(e))
             self.llm = None
             self.chain = None
-
-        # 情感关键词映射
-        self.emotion_keywords = {
-            "happy": ["开心", "高兴", "快乐", "兴奋", "满意", "幸福", "😊", "😄", "🎉"],
-            "sad": ["难过", "伤心", "沮丧", "失落", "痛苦", "抑郁", "😢", "😭", "💔"],
-            "angry": ["愤怒", "生气", "恼火", "愤怒", "暴躁", "😠", "😡", "🔥"],
-            "anxious": ["焦虑", "担心", "紧张", "不安", "恐惧", "😰", "😨", "😟"],
-            "excited": ["兴奋", "激动", "期待", "迫不及待", "兴奋", "🎊", "✨", "🚀"],
-            "confused": ["困惑", "迷茫", "不明白", "不懂", "疑惑", "😕", "🤔", "❓"],
-            "frustrated": ["沮丧", "挫败", "失望", "无奈", "😤", "😩", "😒"],
-            "lonely": ["孤独", "寂寞", "孤单", "😔", "😞", "💭"],
-            "grateful": ["感谢", "感激", "谢谢", "🙏", "💝", "❤️"]
-        }
 
     def analyze_emotion(self, message):
         """分析用户消息的情感"""
@@ -163,27 +125,16 @@ class ChatEngine:
 
     def get_openai_response(self, user_input, user_id, session_id):
         """使用 LangChain LCEL 链生成回应（如果可用），否则使用传统HTTP请求"""
-        # 安全检查
-        is_safe, warning = self.is_safe_input(user_input)
-        if not is_safe:
-            return warning
-
-        # 如果没有API key，直接使用fallback
-        if not self.api_key:
-            emotion_data = self.analyze_emotion(user_input)
-            return self._get_fallback_response(user_input, emotion_data)
-
         # 优先使用 LCEL 链（如果可用）
-        if self.chain:
-            try:
-                # 4. 使用链生成回应 (chain.invoke) - 包含长期记忆
-                response = self.chain.invoke({
-                    "input": user_input
-                })
-                return response
-            except Exception as e:
-                print("LangChain调用失败 ({}): {}，尝试传统方式".format(self.model, e))
-                return None
+        try:
+            # 4. 使用链生成回应 (chain.invoke) - 包含长期记忆
+            response = self.chain.invoke({
+                "input": user_input
+            })
+            return response
+        except Exception as e:
+            print("LangChain调用失败 ({}): {}，尝试传统方式".format(self.model, e))
+            return None
 
     def _get_fallback_response(self, user_input, emotion_data=None):
         """提供备选回应当API调用失败时"""
@@ -262,27 +213,9 @@ class ChatEngine:
         user_id = request.user_id or "anonymous"
 
         print(f"Chat请求: session_id={session_id}, user_id={user_id}, message={request.message[:50]}...")
-
-        # 分析情感
-        emotion_data = self.analyze_emotion(request.message)
         # 生成回应
         response_text = self.get_openai_response(request.message, user_id, session_id)
-
-        # 保存对话到向量数据库（长期记忆）
-        if self.vector_store:
-            try:
-                self.vector_store.add_conversation(
-                    session_id=session_id,
-                    message=request.message,
-                    response=response_text,
-                    emotion=emotion_data["emotion"]
-                )
-            except Exception as e:
-                print("保存到向量数据库失败: {}".format(e))
-
         return ChatResponse(
             response=response_text,
             session_id=session_id,
-            emotion=emotion_data["emotion"],
-            suggestions=emotion_data["suggestions"][:3]
         )

@@ -8,9 +8,6 @@ from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, Field, validator
 
-from app.schemas.common_schemas import BaseResponse
-
-
 class LLMProvider(str, Enum):
     """LLM提供商枚举"""
     OPENAI = "openai"

@@ -4,7 +4,6 @@
 """
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from typing import List
 from app.common.global_models import ChatRequest, ChatResponse
 from app.services.chat_service import ChatService
 from app.config.logging_config import get_logger

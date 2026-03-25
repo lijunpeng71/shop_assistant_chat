@@ -5,6 +5,9 @@ pydantic-settings>=2.0.0
 SQLAlchemy==2.0.44
 uvicorn[standard]==0.38.0
 
+# langchain
+langchain
+langchain_openai
 # 工具库
 orjson==3.11.4
 toollib==1.9.4
