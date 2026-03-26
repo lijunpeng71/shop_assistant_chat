@@ -1,5 +1,5 @@
 """公共模块"""
 
-from .result import ApiResult
+from .Result import ApiResult
 
 __all__ = ["ApiResult"]

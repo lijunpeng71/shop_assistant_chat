@@ -8,6 +8,7 @@ from deepagents import create_deep_agent
 from agents.task_deepagent import task_subagent
 from agents.purchase_deepagent import purchase_subagent
 from agents.search_deepagent import search_subagent
+from agents.intent_recognition_agent import intent_recognition_agent
 
 from llm.client import llm_client
 from core.logger import get_logger
@@ -21,6 +22,7 @@ class MainDeepAgent:
     def __init__(self):
         """初始化主智能体"""
         self.agent = self._create_agent()
+        self.intent_agent = intent_recognition_agent
     
     def _create_agent(self):
         """创建主智能体"""
@@ -48,9 +50,17 @@ class MainDeepAgent:
         ]
         
         try:
+            # 获取模型信息
+            model_info = llm_client.get_model_info()
+            model_id = model_info.get('model_id', 'gpt-3.5-turbo')
+            
+            # 如果是复杂的模型名称，使用简单的默认名称
+            if '/' in model_id:
+                model_id = 'gpt-3.5-turbo'
+            
             # 创建DeepAgents主智能体
             agent = create_deep_agent(
-                model=llm_client.model,
+                model=model_id,
                 system_prompt=main_system_prompt,
                 subagents=subagents,
                 tools=[],  # 主智能体不需要特殊工具
@@ -154,6 +164,73 @@ class MainDeepAgent:
 
 用户消息: {current_message}"""
     
+    async def _recognize_user_intent(self, message: str, user_id: str = None, session_id: str = None) -> Dict[str, Any]:
+        """
+        使用意图识别智能体识别用户意图
+        
+        Args:
+            message: 用户消息
+            user_id: 用户ID
+            session_id: 会话ID
+            
+        Returns:
+            意图识别结果
+        """
+        try:
+            # 构建结果集 - 包含所有可用的智能体选项
+            result_set = [
+                {
+                    "type": "task",
+                    "title": "任务执行",
+                    "description": "执行冰柜陈列检查、库存管理、任务执行等操作",
+                    "agent": "task-agent",
+                    "keywords": ["任务", "执行", "检查", "陈列", "库存"]
+                },
+                {
+                    "type": "purchase", 
+                    "title": "商品采购",
+                    "description": "商品采购、供应商管理、采购策略制定",
+                    "agent": "purchase-agent",
+                    "keywords": ["采购", "购买", "进货", "供应商"]
+                },
+                {
+                    "type": "search",
+                    "title": "信息搜索", 
+                    "description": "信息搜索、市场调研、数据分析",
+                    "agent": "search-agent",
+                    "keywords": ["搜索", "查询", "信息", "市场", "数据"]
+                },
+                {
+                    "type": "general",
+                    "title": "一般对话",
+                    "description": "一般性对话和帮助信息",
+                    "agent": "main-agent",
+                    "keywords": ["帮助", "你好", "介绍"]
+                }
+            ]
+            
+            # 调用意图识别智能体
+            intent_result = await self.intent_agent.recognize_intent(message, result_set)
+            
+            log.info(f"🎯 意图识别结果: {intent_result.get('selected_result', {}).get('title')}, 置信度: {intent_result.get('confidence', 0)}")
+            
+            return intent_result
+            
+        except Exception as e:
+            log.error(f"❌ 意图识别失败: {e}")
+            # 回退到默认选择
+            return {
+                "intent": "fallback",
+                "selected_result": {
+                    "type": "general",
+                    "title": "一般对话",
+                    "description": "一般性对话和帮助信息",
+                    "agent": "main-agent"
+                },
+                "confidence": 0.3,
+                "message": f"意图识别失败，使用默认选项: {str(e)}"
+            }
+    
     async def process_message(self, message: str, user_id: str = None, session_id: str = None, image_url: str = None, history: list = None) -> Dict[str, Any]:
         """
         处理用户消息
@@ -171,7 +248,42 @@ class MainDeepAgent:
         try:
             log.info(f"🤖 主智能体处理消息: user_id={user_id}, session_id={session_id}")
             
-            # 构建完整的消息上下文，包含用户信息、历史对话和图片URL信息
+            # 步骤1: 使用意图识别智能体识别用户意图
+            intent_result = await self._recognize_user_intent(message, user_id, session_id)
+            selected_result = intent_result.get('selected_result', {})
+            confidence = intent_result.get('confidence', 0.0)
+            
+            log.info(f"🎯 意图识别完成: 选择={selected_result.get('title')}, 置信度={confidence}")
+            
+            # 步骤2: 根据意图识别结果选择处理方式
+            if confidence < 0.5:
+                # 置信度较低，使用传统的主智能体处理
+                log.warning("⚠️ 意图识别置信度较低，使用传统处理方式")
+                return await self._process_with_main_agent(message, user_id, session_id, image_url, history)
+            
+            # 步骤3: 根据选择的智能体类型进行处理
+            agent_type = selected_result.get('type', 'general')
+            
+            if agent_type == 'general':
+                # 一般对话，直接由主智能体处理
+                return await self._process_with_main_agent(message, user_id, session_id, image_url, history)
+            else:
+                # 特定智能体处理
+                return await self._process_with_subagent(message, agent_type, user_id, session_id, image_url, history, intent_result)
+                
+        except Exception as e:
+            log.error(f"❌ 主智能体处理失败: {e}")
+            return {
+                "type": "error",
+                "message": "抱歉，处理您的请求时遇到了问题，请稍后重试。",
+                "data": {"error": str(e)},
+                "suggestions": ["请重新描述您的问题", "尝试简化您的需求"]
+            }
+    
+    async def _process_with_main_agent(self, message: str, user_id: str = None, session_id: str = None, image_url: str = None, history: list = None) -> Dict[str, Any]:
+        """使用传统的主智能体处理消息"""
+        try:
+            # 构建完整的消息上下文
             full_message = message
             
             # 添加用户上下文信息
@@ -193,7 +305,7 @@ class MainDeepAgent:
                 context_message = self._build_context_from_history(history, message, user_id, session_id)
                 full_message = context_message
             
-            # 调用DeepAgents，让其处理human-in-the-loop中断
+            # 调用DeepAgents
             try:
                 result = await self.agent(full_message)
                 
@@ -237,13 +349,104 @@ class MainDeepAgent:
                     return await self._fallback_to_mock_agent(message, user_id, session_id)
             
         except Exception as e:
-            log.error(f"❌ 主智能体处理失败: {e}")
+            log.error(f"❌ 传统主智能体处理失败: {e}")
             return {
                 "type": "error",
                 "message": "抱歉，处理您的请求时遇到了问题，请稍后重试。",
                 "data": {"error": str(e)},
                 "suggestions": ["请重新描述您的问题", "尝试简化您的需求"]
             }
+    
+    async def _process_with_subagent(self, message: str, agent_type: str, user_id: str = None, session_id: str = None, image_url: str = None, history: list = None, intent_result: Dict[str, Any] = None) -> Dict[str, Any]:
+        """使用特定的子智能体处理消息"""
+        try:
+            log.info(f"🤖 使用子智能体处理: agent_type={agent_type}")
+            
+            # 构建子智能体处理的消息
+            selected_result = intent_result.get('selected_result', {}) if intent_result else {}
+            confidence = intent_result.get('confidence', 0.0) if intent_result else 0.0
+            
+            # 添加意图识别信息到消息中
+            intent_context = f"""基于意图识别分析：
+- 选择的智能体类型: {selected_result.get('title', agent_type)}
+- 置信度: {confidence}
+- 用户原始需求: {message}
+
+请根据上述分析，使用{selected_result.get('title', agent_type)}的专业能力来处理用户的需求。
+
+用户消息: {message}"""
+            
+            # 添加用户上下文
+            if image_url:
+                full_message = f"{intent_context}\n\n[图片URL: {image_url}]"
+            else:
+                full_message = intent_context
+            
+            # 根据智能体类型选择相应的子智能体
+            if agent_type == "task":
+                return await self._call_task_agent(full_message, user_id, session_id, image_url)
+            elif agent_type == "purchase":
+                return await self._call_purchase_agent(full_message, user_id, session_id)
+            elif agent_type == "search":
+                return await self._call_search_agent(full_message, user_id, session_id)
+            else:
+                # 回退到主智能体
+                return await self._process_with_main_agent(message, user_id, session_id, image_url, history)
+            
+        except Exception as e:
+            log.error(f"❌ 子智能体处理失败: {e}")
+            # 回退到主智能体
+            return await self._process_with_main_agent(message, user_id, session_id, image_url, history)
+    
+    async def _call_task_agent(self, message: str, user_id: str = None, session_id: str = None, image_url: str = None) -> Dict[str, Any]:
+        """调用任务智能体"""
+        try:
+            # 这里应该调用任务智能体，暂时返回模拟响应
+            return {
+                "type": "task",
+                "message": f"📋 **任务执行模式**\n\n已识别您需要任务执行帮助。{message}\n\n我将协助您完成冰柜陈列检查、库存管理等任务。",
+                "data": {
+                    "agent_type": "task",
+                    "confidence": 0.8,
+                    "requires_image": "检查冰柜陈列" in message.lower()
+                },
+                "suggestions": ["检查冰柜陈列", "库存盘点", "执行任务"]
+            }
+        except Exception as e:
+            log.error(f"❌ 任务智能体调用失败: {e}")
+            raise e
+    
+    async def _call_purchase_agent(self, message: str, user_id: str = None, session_id: str = None) -> Dict[str, Any]:
+        """调用采购智能体"""
+        try:
+            return {
+                "type": "purchase",
+                "message": f"🛒 **采购管理模式**\n\n已识别您需要采购管理帮助。{message}\n\n我将协助您进行商品采购、供应商管理和采购策略制定。",
+                "data": {
+                    "agent_type": "purchase",
+                    "confidence": 0.8
+                },
+                "suggestions": ["分析采购需求", "选择供应商", "制定采购计划"]
+            }
+        except Exception as e:
+            log.error(f"❌ 采购智能体调用失败: {e}")
+            raise e
+    
+    async def _call_search_agent(self, message: str, user_id: str = None, session_id: str = None) -> Dict[str, Any]:
+        """调用搜索智能体"""
+        try:
+            return {
+                "type": "search",
+                "message": f"🔍 **信息搜索模式**\n\n已识别您需要信息搜索帮助。{message}\n\n我将协助您进行市场调研、数据分析和信息搜索。",
+                "data": {
+                    "agent_type": "search",
+                    "confidence": 0.8
+                },
+                "suggestions": ["搜索市场信息", "查询商品价格", "分析销售数据"]
+            }
+        except Exception as e:
+            log.error(f"❌ 搜索智能体调用失败: {e}")
+            raise e
     
     def _handle_deepagents_interrupt(self, result, user_id: str, session_id: str, image_url: str = None) -> Dict[str, Any]:
         """处理DeepAgents的中断状态"""

@@ -7,7 +7,7 @@ from api.chat_router import chat_router
 from core.config import settings
 from core.exceptions import setup_exception_handlers
 from core.logger import get_logger, configure_third_party_loggers
-from common.result import ApiResult
+from common.Result import ApiResult
 
 # 配置第三方日志
 configure_third_party_loggers()

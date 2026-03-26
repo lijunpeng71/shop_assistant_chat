@@ -6,7 +6,7 @@ import json
 import asyncio
 
 from service.chat_service import ChatService
-from common.result import ApiResult
+from common.Result import ApiResult
 from core.logger import get_logger
 
 # 创建单例实例
