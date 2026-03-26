@@ -1,8 +1,0 @@
-2026-03-25 23:55:25,626 - app.api.chat_router - ERROR - 聊天接口错误: 'ChatEngine' object has no attribute 'is_safe_input'
-2026-03-25 23:57:28,023 - app.api.chat_router - ERROR - 聊天接口错误: 'ChatEngine' object has no attribute 'vector_store'
-2026-03-25 23:57:58,232 - app.api.chat_router - ERROR - 聊天接口错误: 'ChatEngine' object has no attribute 'vector_store'
-2026-03-25 23:58:28,934 - app.api.chat_router - ERROR - 聊天接口错误: 'ChatEngine' object has no attribute 'vector_store'
-2026-03-26 00:04:50,302 - app.api.chat_router - ERROR - 聊天接口错误: 1 validation error for ChatResponse
-response
-  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]
-    For further information visit https://errors.pydantic.dev/2.12/v/string_type

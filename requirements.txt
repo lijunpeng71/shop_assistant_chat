@@ -1,29 +1,15 @@
-# 现代化技术栈
-fastapi==0.123.5
-pydantic>=2.0.0
-pydantic-settings>=2.0.0
-SQLAlchemy==2.0.44
-uvicorn[standard]==0.38.0
-
-# langchain
-langchain
-langchain_openai
-# 工具库
-orjson==3.11.4
-toollib==1.9.4
-python-dotenv==1.2.1
-PyYAML==6.0.3
-loguru==0.7.3
 requests
-
-# 数据库
-aiosqlite==0.21.0
-redis==7.1.0
-aiomysql==0.3.2
-pymysql==1.1.2
-
-# 测试
-pytest>=7.0.0
-pytest-asyncio>=0.21.0
-httpx>=0.24.0
-PyPDF2
+langchain
+langchain_openapi
+deepagents
+beautifulsoup4
+tiktoken
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+sqlalchemy
+asyncpg
+aiosqlite
+python-dotenv
+httpx
