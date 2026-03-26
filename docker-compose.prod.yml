@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # 主应用服务（生产环境）
+  shop-assistant-chat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shop-assistant-chat-prod
+    ports:
+      - "8800:8800"
+    env_file:
+      - .env.local
+    environment:
+      # 生产环境覆盖配置
+      - DEBUG=false
+      - ENVIRONMENT=production
+      - LOG_LEVEL=WARNING
+      # Redis配置（使用外部Redis）
+      - REDIS_URL=redis://:acctrue666888666@183.222.230.18:6379/0
+    volumes:
+      # 日志文件挂载
+      - ./logs:/app/logs
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8800/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
