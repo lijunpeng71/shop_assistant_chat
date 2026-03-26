@@ -3,7 +3,7 @@ from typing import Dict
 import requests
 from bs4 import BeautifulSoup
 
-from common import ApiResult
+from common.result import ApiResult
 
 
 # ===================== Bing 搜索 Agent 工具 =====================
