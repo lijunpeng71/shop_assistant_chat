@@ -1,3 +1,7 @@
+"""
+Bing搜索工具 - 提供必应国内版搜索功能
+"""
+
 from typing import Dict
 
 import requests
@@ -6,25 +10,30 @@ from bs4 import BeautifulSoup
 from common.Result import ApiResult
 
 
-# ===================== Bing 搜索 Agent 工具 =====================
 class BingSearchTool:
+    """必应搜索工具类"""
+
     name = "bing_search"
-    description = "必应国内版搜索，输入关键词，返回标题、链接、摘要，供 Agent 深度查询使用"
+    description = "必应国内版搜索，输入关键词，返回标题、链接、摘要，供Agent深度查询使用"
 
     def __init__(self, max_result_length=10000):
         self.base_url = "https://cn.bing.com/search"
         self.session = requests.Session()
-        self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept-Language": "zh-CN,zh;q=0.9",
-            "Referer": "https://cn.bing.com"
-        })
+        self.session.headers.update(
+            {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept-Language": "zh-CN,zh;q=0.9",
+                "Referer": "https://cn.bing.com",
+            }
+        )
         self.max_result_length = max_result_length
 
     def __call__(self, query: str) -> Dict:
+        """调用搜索并返回结果字典"""
         return self.search(query).to_dict()
 
     def search(self, query: str) -> ApiResult:
+        """执行搜索"""
         if not query or len(query.strip()) == 0:
             return ApiResult(code=-1, message="搜索关键词不能为空", data=None)
 

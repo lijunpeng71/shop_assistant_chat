@@ -1,13 +1,17 @@
+"""
+主应用入口 - FastAPI应用初始化和配置
+"""
+
 import time
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from api.chat_router import chat_router
+from common.Result import ApiResult
 from core.config import settings
 from core.exceptions import setup_exception_handlers
-from core.logger import get_logger, configure_third_party_loggers
-from common.Result import ApiResult
+from core.logger import configure_third_party_loggers, get_logger
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 # 配置第三方日志
 configure_third_party_loggers()
@@ -15,22 +19,26 @@ configure_third_party_loggers()
 log = get_logger(__name__)
 
 
-# ==================== 生命周期 ====================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    log.info("✅ 服务启动", extra={
-        "app_name": settings.app_name,
-        "version": settings.app_version,
-        "environment": settings.environment,
-        "host": settings.host,
-        "port": settings.port
-    })
+    """应用生命周期管理"""
+    log.info(
+        "✅ 服务启动",
+        extra={
+            "app_name": settings.app_name,
+            "version": settings.app_version,
+            "environment": settings.environment,
+            "host": settings.host,
+            "port": settings.port,
+        },
+    )
 
     # 打印注册的API接口
     print_api_routes(app)
 
     yield
-    log.info("🛑 服务停止")
+
+    log.info("🛑 服务关闭")
 
 
 def print_api_routes(app: FastAPI):
@@ -39,13 +47,13 @@ def print_api_routes(app: FastAPI):
     print("=" * 60)
 
     for route in app.routes:
-        if hasattr(route, 'methods') and hasattr(route, 'path'):
+        if hasattr(route, "methods") and hasattr(route, "path"):
             methods = list(route.methods)
             # 过滤掉OPTIONS和HEAD方法
-            methods = [m for m in methods if m not in ['OPTIONS', 'HEAD']]
+            methods = [m for m in methods if m not in ["OPTIONS", "HEAD"]]
 
             if methods:  # 只显示有HTTP方法的路由
-                method_str = ', '.join(methods)
+                method_str = ", ".join(methods)
                 print(f"  {method_str:<8} {route.path}")
 
                 # 如果路由有描述，显示描述

@@ -1,17 +1,21 @@
+"""
+聊天API路由 - 处理聊天相关的HTTP请求
+"""
+
+import asyncio
+import json
+from typing import Optional
+
 from fastapi import APIRouter, Header
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from typing import Optional
-import json
-import asyncio
 
-from service.chat_service import ChatService
 from common.Result import ApiResult
 from core.logger import get_logger
+from service.chat_service import ChatService
 
 # 创建单例实例
 chat_service = ChatService()
-
 log = get_logger(__name__)
 
 chat_router = APIRouter(prefix="/v1/chat")
@@ -19,15 +23,16 @@ chat_router = APIRouter(prefix="/v1/chat")
 
 class ChatRequest(BaseModel):
     """聊天请求模型"""
+
     message: str = Field(..., description="用户输入的消息", min_length=1, max_length=10000)
     image_url: Optional[str] = Field(None, description="图片地址URL，用于冰柜检查等任务")
 
 
 @chat_router.post("/complete")
 async def complete(
-        request: ChatRequest,
-        user_id: str = Header(None, description="用户ID"),
-        session_id: str = Header(None, description="会话ID")
+    request: ChatRequest,
+    user_id: str = Header(None, description="用户ID"),
+    session_id: str = Header(None, description="会话ID"),
 ):
     """
     聊天完成接口

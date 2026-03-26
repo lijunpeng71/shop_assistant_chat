@@ -1,12 +1,15 @@
-"""LLM client wrapper for better error handling and retry logic"""
+"""
+LLM client wrapper for better error handling and retry logic
+"""
 
 import asyncio
-from typing import Optional, Dict, Any, List
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from typing import Any, Dict, List, Optional
 
-from core.logger import get_logger
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
 from core.exceptions import AIModelError, ExternalServiceError
+from core.logger import get_logger
 from .config import llm_config
 
 log = get_logger(__name__)
@@ -14,17 +17,17 @@ log = get_logger(__name__)
 
 class LLMClient:
     """Enhanced LLM client with error handling and retry logic"""
-    
+
     def __init__(self):
         self.client = None
         self._initialized = False
-    
+
     def _ensure_initialized(self):
         """延迟初始化客户端"""
         if not self._initialized:
             if not llm_config.is_configured:
                 raise AIModelError("LLM is not properly configured")
-            
+
             self.client = ChatOpenAI(
                 base_url=llm_config.base_url,
                 api_key=llm_config.api_key,

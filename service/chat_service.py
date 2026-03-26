@@ -1,6 +1,10 @@
-import time
+"""
+聊天服务 - 增强的聊天服务，支持多智能体，使用短期记忆（单例模式）
+"""
+
 import sys
-from typing import Dict, Any, Optional
+import time
+from typing import Any, Dict, Optional
 
 from agents.main_deepagent import main_deep_agent
 from core.logger import get_logger
@@ -10,23 +14,29 @@ log = get_logger(__name__)
 
 class ChatService:
     """增强的聊天服务，支持多智能体，使用短期记忆（单例模式）"""
-    
+
     _instance = None
     _initialized = False
-    
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(ChatService, cls).__new__(cls)
         return cls._instance
-    
+
     def __init__(self):
         if not self._initialized:
             # 使用主智能体
             self.main_agent = main_deep_agent
             self.session_memory = {}  # 短期记忆存储
             ChatService._initialized = True
-    
-    async def chat(self, message: str, user_id: str = None, session_id: str = None, image_url: str = None) -> Dict[str, Any]:
+
+    async def chat(
+        self,
+        message: str,
+        user_id: str = None,
+        session_id: str = None,
+        image_url: str = None,
+    ) -> Dict[str, Any]:
         """
         处理聊天消息
         

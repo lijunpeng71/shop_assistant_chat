@@ -1,32 +1,39 @@
+"""
+应用配置 - 使用Pydantic BaseSettings管理配置
+"""
+
 from typing import List, Optional
-from pydantic import Field, field_validator, ConfigDict
+
+from pydantic import ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    """应用配置类"""
+
     # Application Settings
     app_name: str = Field(default="shop assistant chatbot", description="Application name")
     app_version: str = Field(default="v1.0.0", description="Application version")
     debug: bool = Field(default=False, description="Debug mode")
     environment: str = Field(default="production", description="Environment name")
-    
+
     # Server Settings
     host: str = Field(default="0.0.0.0", description="Server host")
     port: int = Field(default=8800, description="Server port")
     api_prefix: str = Field(default="/api", description="API prefix")
-    
+
     # CORS Settings
     allowed_origins: List[str] = Field(
         default=["http://localhost:3000", "http://localhost:8080"],
-        description="Allowed CORS origins"
+        description="Allowed CORS origins",
     )
     allowed_methods: List[str] = Field(
         default=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        description="Allowed CORS methods"
+        description="Allowed CORS methods",
     )
     allowed_headers: List[str] = Field(
         default=["*"],
-        description="Allowed CORS headers"
+        description="Allowed CORS headers",
     )
     
     # AI Model Settings

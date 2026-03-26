@@ -2,45 +2,44 @@
 意图识别智能体 - 基于LangChain DeepAgents
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
+from core.logger import get_logger
 from deepagents import create_deep_agent
 from llm.client import llm_client
-from core.logger import get_logger
 
 log = get_logger(__name__)
 
 
 class IntentRecognitionAgent:
     """意图识别智能体 - 负责识别用户意图并选择合适的处理方案"""
-    
+
     def __init__(self):
         """初始化意图识别智能体"""
         self.agent = self._create_agent()
         self.intent_mappings = self._init_intent_mappings()
-    
+
     def _create_agent(self):
         """创建意图识别智能体"""
-        
+
         # 意图识别系统提示
-        intent_system_prompt = """你是一个专业的意图识别助手。你的职责是：
-
-1. **分析用户输入** - 理解用户的具体需求和意图
-2. **匹配预定义结果集** - 从给定的候选结果集中选择最合适的答案
-3. **返回最佳匹配** - 返回选择的结果和置信度
-
-工作流程：
-- 接收用户输入和预定义的结果集
-- 分析用户意图和语义
-- 从结果集中选择最匹配的选项
-- 返回选择结果和置信度评分
-
-重要原则：
-- 必须从给定的结果集中选择答案
-- 基于语义相似度和用户需求进行匹配
-- 提供置信度评分帮助决策
-- 如果没有合适的匹配，选择最接近的选项
-
-请始终以客观、准确的方式进行意图识别和匹配。"""
+        intent_system_prompt = (
+            "你是一个专业的意图识别助手。你的职责是：\n\n"
+            "1. **分析用户输入** - 理解用户的具体需求和意图\n"
+            "2. **匹配预定义结果集** - 从给定的候选结果集中选择最合适的答案\n"
+            "3. **返回最佳匹配** - 返回选择的结果和置信度\n\n"
+            "工作流程：\n"
+            "- 接收用户输入和预定义的结果集\n"
+            "- 分析用户意图和语义\n"
+            "- 从结果集中选择最匹配的选项\n"
+            "- 返回选择结果和置信度评分\n\n"
+            "重要原则：\n"
+            "- 必须从给定的结果集中选择答案\n"
+            "- 基于语义相似度和用户需求进行匹配\n"
+            "- 提供置信度评分帮助决策\n"
+            "- 如果没有合适的匹配，选择最接近的选项\n\n"
+            "请始终以客观、准确的方式进行意图识别和匹配。"
+        )
         
         try:
             # 获取模型信息

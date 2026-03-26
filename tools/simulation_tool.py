@@ -2,7 +2,8 @@
 通用模拟工具 - 处理所有模拟操作
 """
 
-from typing import Dict, Any
+from typing import Any, Dict
+
 from core.logger import get_logger
 
 log = get_logger(__name__)
@@ -10,12 +11,17 @@ log = get_logger(__name__)
 
 class SimulationTool:
     """通用模拟工具类"""
-    
+
     def __init__(self):
         """初始化模拟工具"""
         pass
-    
-    async def simulate_task_response(self, message: str, user_id: str = None, response_type: str = "auto") -> Dict[str, Any]:
+
+    async def simulate_task_response(
+        self,
+        message: str,
+        user_id: str = None,
+        response_type: str = "auto",
+    ) -> Dict[str, Any]:
         """
         模拟任务响应
         

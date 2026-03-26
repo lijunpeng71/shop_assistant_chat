@@ -2,7 +2,8 @@
 红包工具 - 用于发送红包奖励
 """
 
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from core.logger import get_logger
 
 log = get_logger(__name__)
@@ -10,13 +11,19 @@ log = get_logger(__name__)
 
 class RedPacketTool:
     """红包工具类"""
-    
+
     def __init__(self):
         """初始化红包工具"""
         self.redpacket_api_url = "https://api.redpacket.example.com/send"  # 模拟API地址
         self.api_key = "redpacket_api_key_12345"  # 模拟API密钥
-    
-    async def send_redpacket(self, user_id: str, amount: float, reason: str, task_type: str = "general") -> Dict[str, Any]:
+
+    async def send_redpacket(
+        self,
+        user_id: str,
+        amount: float,
+        reason: str,
+        task_type: str = "general",
+    ) -> Dict[str, Any]:
         """
         发送红包
         
