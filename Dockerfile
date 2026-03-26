@@ -16,6 +16,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# 创建日志目录
+RUN mkdir -p /app/logs
+
 # 复制requirements文件
 COPY requirements.txt .
 
@@ -24,11 +27,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制应用代码
 COPY . .
-
-# 创建非root用户
-RUN useradd --create-home --shell /bin/bash app \
-    && chown -R app:app /app
-USER app
 
 # 暴露端口
 EXPOSE 8800
