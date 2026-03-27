@@ -10,7 +10,7 @@ from fastapi import APIRouter, Header
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from common.Result import ApiResult
+from common.result import ApiResult
 from core.logger import get_logger
 from service.chat_service import ChatService
 

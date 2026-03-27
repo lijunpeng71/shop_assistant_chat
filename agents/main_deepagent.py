@@ -11,7 +11,8 @@ from agents.search_deepagent import search_subagent
 from agents.task_deepagent import task_subagent
 from core.logger import get_logger
 from deepagents import create_deep_agent
-from llm.client import llm_client
+
+from llm import chat_base_model
 
 log = get_logger(__name__)
 
@@ -49,17 +50,9 @@ class MainDeepAgent:
         ]
 
         try:
-            # 获取模型信息
-            model_info = llm_client.get_model_info()
-            model_id = model_info.get('model_id', 'gpt-3.5-turbo')
-
-            # 如果是复杂的模型名称，使用简单的默认名称
-            if '/' in model_id:
-                model_id = 'gpt-3.5-turbo'
-
             # 创建DeepAgents主智能体
             agent = create_deep_agent(
-                model=model_id,
+                model=chat_base_model,
                 system_prompt=main_system_prompt,
                 subagents=subagents,
                 tools=[],  # 主智能体不需要特殊工具

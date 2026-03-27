@@ -1,6 +1,6 @@
 requests
 langchain
-langchain_openapi
+langchain_openai
 deepagents
 beautifulsoup4
 tiktoken

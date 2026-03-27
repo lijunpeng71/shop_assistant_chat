@@ -7,7 +7,7 @@ from typing import Dict
 import requests
 from bs4 import BeautifulSoup
 
-from common.Result import ApiResult
+from common.result import ApiResult
 
 
 class BingSearchTool:

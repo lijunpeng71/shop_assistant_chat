@@ -6,15 +6,12 @@ import time
 from contextlib import asynccontextmanager
 
 from api.chat_router import chat_router
-from common.Result import ApiResult
+from common.result import ApiResult
 from core.config import settings
 from core.exceptions import setup_exception_handlers
-from core.logger import configure_third_party_loggers, get_logger
+from core.logger import get_logger
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-# 配置第三方日志
-configure_third_party_loggers()
 
 log = get_logger(__name__)
 
