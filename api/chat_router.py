@@ -72,20 +72,20 @@ async def complete(
 
         # 智能体现在只返回字符串消息，直接使用
         response_message = result if isinstance(result, str) else str(result)
-        
+
         # 检查智能体返回的消息中是否包含"需要拍照"标识
         front_calls = []
-        
+
         # 检查消息中的拍照标识
         if "需要拍照" in response_message or "[需要拍照]" in response_message:
             front_calls.append("camera_call")
             log.info(f"检测到智能体返回的'需要拍照'标识")
-        
+
         # 检查用户原始消息中是否明确提到拍照需求（作为备用检测）
         elif any(keyword in request.message for keyword in ["拍照", "图片", "照片", "上传图片"]):
             front_calls.append("camera_call")
             log.info(f"用户明确提到拍照需求")
-        
+
         log.info(f"聊天请求处理成功，front_calls: {front_calls}")
 
         return ApiResult.success(
@@ -201,15 +201,15 @@ async def stream_chat_response(request: ChatRequest, user_id: str, session_id: s
 
         # 智能体现在只返回字符串消息，直接使用
         response_message = result if isinstance(result, str) else str(result)
-        
+
         # 检查智能体返回的消息中是否包含"需要拍照"标识
         front_calls = []
-        
+
         # 检查消息中的拍照标识
         if "需要拍照" in response_message or "[需要拍照]" in response_message:
             front_calls.append("camera_call")
             log.info(f"流式响应检测到智能体返回的'需要拍照'标识")
-        
+
         # 检查用户原始消息中是否明确提到拍照需求（作为备用检测）
         elif any(keyword in request.message for keyword in ["拍照", "图片", "照片", "上传图片"]):
             front_calls.append("camera_call")
@@ -229,7 +229,7 @@ async def stream_chat_response(request: ChatRequest, user_id: str, session_id: s
         )
         yield f"event: start\n"
         yield f"data: {json.dumps(start_data, ensure_ascii=False)}\n\n"
-        
+
         # 2. 逐字符流式输出消息内容
         for i, char in enumerate(response_message):
             # 发送字符片段 - 使用ApiResult格式
@@ -244,7 +244,7 @@ async def stream_chat_response(request: ChatRequest, user_id: str, session_id: s
             )
             yield f"event: chunk\n"
             yield f"data: {json.dumps(chunk_data, ensure_ascii=False)}\n\n"
-            
+
             # 控制打字速度
             if i % 3 == 0:
                 await asyncio.sleep(0.05)
@@ -259,7 +259,7 @@ async def stream_chat_response(request: ChatRequest, user_id: str, session_id: s
 
         # 4. 发送结束事件 - 使用ApiResult格式
         end_data = ApiResult.success(
-            data={"status": "finished", "message": "流式响应完成"},
+            data={"status": "finished", "message": "流式响应完成", "front_calls": front_calls},
             message="响应完成"
         )
         yield f"event: end\n"
