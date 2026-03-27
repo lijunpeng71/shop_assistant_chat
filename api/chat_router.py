@@ -147,7 +147,7 @@ async def stream_complete(
             )
             error_data["finished"] = True
             return StreamingResponse(
-                iter([f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"]),
+                iter(["缺少用户ID，请在请求头中提供user_id"]),
                 media_type="text/event-stream"
             )
 
@@ -158,7 +158,7 @@ async def stream_complete(
             )
             error_data["finished"] = True
             return StreamingResponse(
-                iter([f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"]),
+                iter(["缺少会话ID，请在请求头中提供session_id"]),
                 media_type="text/event-stream"
             )
 
@@ -183,7 +183,7 @@ async def stream_complete(
 
 async def stream_chat_response(request: ChatRequest, user_id: str, session_id: str):
     """
-    流式聊天响应生成器
+    流式聊天响应生成器 - 标准SSE格式
     
     Args:
         request: 聊天请求
@@ -215,80 +215,64 @@ async def stream_chat_response(request: ChatRequest, user_id: str, session_id: s
             front_calls.append("camera_call")
             log.info(f"流式响应检测到用户明确提到拍照需求")
 
-        # 构建响应数据 - 包含front_calls
-        response_data = {
+        # 构建最终响应数据
+        final_data = {
             "message": response_message,
             "front_calls": front_calls
         }
 
-        # 使用ApiResult统一封装
-        success_response = ApiResult.success(
-            data=response_data,
+        # 标准SSE格式流式输出，保持与complete接口格式一致
+        # 1. 发送开始事件 - 使用ApiResult格式
+        start_data = ApiResult.success(
+            data={"status": "started", "message": "开始处理请求"},
+            message="处理开始"
+        )
+        yield f"event: start\n"
+        yield f"data: {json.dumps(start_data, ensure_ascii=False)}\n\n"
+        
+        # 2. 逐字符流式输出消息内容
+        for i, char in enumerate(response_message):
+            # 发送字符片段 - 使用ApiResult格式
+            chunk_data = ApiResult.success(
+                data={
+                    "type": "chunk",
+                    "content": char,
+                    "index": i,
+                    "finished": False
+                },
+                message="正在处理"
+            )
+            yield f"event: chunk\n"
+            yield f"data: {json.dumps(chunk_data, ensure_ascii=False)}\n\n"
+            
+            # 控制打字速度
+            if i % 3 == 0:
+                await asyncio.sleep(0.05)
+
+        # 3. 发送完成事件，包含完整数据和front_calls - 使用ApiResult格式
+        complete_data = ApiResult.success(
+            data=final_data,
             message="处理成功"
         )
-
-        # 转换为JSON字符串
-        response_json = json.dumps(success_response, ensure_ascii=False)
-
-        # 逐字符流式输出（打字机效果）
-        for i, char in enumerate(response_json):
-            # 构建部分响应 - 避免嵌套data字段
-            partial_content = response_json[:i + 1]
-
-            # 尝试解析部分JSON，如果失败则返回原始内容
-            try:
-                if i == len(response_json) - 1:
-                    # 最后一个字符，完整解析
-                    parsed_data = json.loads(partial_content)
-                    partial_data = {
-                        "code": parsed_data.get("code", 0),
-                        "message": parsed_data.get("message", "处理成功"),
-                        "response": parsed_data.get("data"),  # 使用response字段避免嵌套
-                        "partial": False,
-                        "finished": True
-                    }
-                else:
-                    # 部分内容，返回原始字符串
-                    partial_data = {
-                        "code": 0,
-                        "message": "正在处理...",
-                        "partial_content": partial_content,
-                        "partial": True,
-                        "finished": False
-                    }
-            except json.JSONDecodeError:
-                # JSON解析失败，返回原始内容
-                partial_data = {
-                    "code": 0,
-                    "message": "正在处理...",
-                    "partial_content": partial_content,
-                    "partial": True,
-                    "finished": False
-                }
-
-            # 发送部分数据
-            yield f"data: {json.dumps(partial_data, ensure_ascii=False)}\n\n"
-
-            # 控制打字速度（每2-3个字符暂停一下）
-            if i % 3 == 0:
-                await asyncio.sleep(0.05)  # 50ms延迟，模拟打字效果
-
-        # 发送完成信号 - 使用ApiResult格式
-        complete_data = ApiResult.success(
-            data={"streaming_completed": True},
-            message="流式响应完成"
-        )
-        complete_data["finished"] = True
+        yield f"event: complete\n"
         yield f"data: {json.dumps(complete_data, ensure_ascii=False)}\n\n"
+
+        # 4. 发送结束事件 - 使用ApiResult格式
+        end_data = ApiResult.success(
+            data={"status": "finished", "message": "流式响应完成"},
+            message="响应完成"
+        )
+        yield f"event: end\n"
+        yield f"data: {json.dumps(end_data, ensure_ascii=False)}\n\n"
 
         log.info(f"流式聊天请求处理成功，front_calls: {front_calls}")
 
     except Exception as e:
         log.error(f"流式响应生成失败: {e}")
-        # 使用ApiResult统一错误格式
+        # 发送错误事件 - 使用ApiResult格式
         error_data = ApiResult.server_error(
             message="流式响应失败，请稍后重试",
             data={"error": str(e)}
         )
-        error_data["finished"] = True
+        yield f"event: error\n"
         yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
