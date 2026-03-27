@@ -139,7 +139,7 @@ async def stream_complete(
             error_data["finished"] = True
             return StreamingResponse(
                 iter([f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"]),
-                media_type="text/plain"
+                media_type="text/event-stream"
             )
         
         if not session_id:
@@ -150,7 +150,7 @@ async def stream_complete(
             error_data["finished"] = True
             return StreamingResponse(
                 iter([f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"]),
-                media_type="text/plain"
+                media_type="text/event-stream"
             )
         
         # 返回流式响应
