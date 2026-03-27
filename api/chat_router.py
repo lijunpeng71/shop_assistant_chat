@@ -4,7 +4,6 @@
 
 import asyncio
 import json
-from typing import Optional
 
 from fastapi import APIRouter, Header
 from fastapi.responses import StreamingResponse
@@ -23,16 +22,15 @@ chat_router = APIRouter(prefix="/v1/chat")
 
 class ChatRequest(BaseModel):
     """聊天请求模型"""
-
     message: str = Field(..., description="用户输入的消息", min_length=1, max_length=10000)
-    image_url: Optional[str] = Field(None, description="图片地址URL，用于冰柜检查等任务")
+    image_url: str = Field(None, description="图片地址URL，用于冰柜检查等任务")
 
 
 @chat_router.post("/complete")
 async def complete(
-    request: ChatRequest,
-    user_id: str = Header(None, description="用户ID"),
-    session_id: str = Header(None, description="会话ID"),
+        request: ChatRequest,
+        user_id: str = Header(None, description="用户ID"),
+        session_id: str = Header(None, description="会话ID"),
 ):
     """
     聊天完成接口
@@ -50,20 +48,20 @@ async def complete(
 
         # 打印请求头信息用于调试
         log.info(f"请求头信息: user_id={user_id}, session_id={session_id}")
-        
+
         # 验证必需的header参数
         if not user_id:
             return ApiResult.bad_request(
                 message="缺少用户ID，请在请求头中提供user_id",
                 data={"error": "Missing user_id header"}
             )
-        
+
         if not session_id:
             return ApiResult.bad_request(
                 message="缺少会话ID，请在请求头中提供session_id",
                 data={"error": "Missing session_id header"}
             )
-        
+
         # 调用聊天服务（使用单例实例）
         result = await chat_service.chat(
             message=request.message,
@@ -72,18 +70,29 @@ async def complete(
             image_url=request.image_url
         )
 
-        # 构建响应数据
-        response_data = {
-            "type": result.get("type", "general"),
-            "message": result.get("message", str(result.get("result", ""))),
-            "data": result.get("data"),
-            "suggestions": result.get("suggestions")
-        }
-
-        log.info(f"聊天请求处理成功: type={response_data['type']}")
+        # 智能体现在只返回字符串消息，直接使用
+        response_message = result if isinstance(result, str) else str(result)
+        
+        # 检查智能体返回的消息中是否包含"需要拍照"标识
+        front_calls = []
+        
+        # 检查消息中的拍照标识
+        if "需要拍照" in response_message or "[需要拍照]" in response_message:
+            front_calls.append("camera_call")
+            log.info(f"检测到智能体返回的'需要拍照'标识")
+        
+        # 检查用户原始消息中是否明确提到拍照需求（作为备用检测）
+        elif any(keyword in request.message for keyword in ["拍照", "图片", "照片", "上传图片"]):
+            front_calls.append("camera_call")
+            log.info(f"用户明确提到拍照需求")
+        
+        log.info(f"聊天请求处理成功，front_calls: {front_calls}")
 
         return ApiResult.success(
-            data=response_data,
+            data={
+                "message": response_message,
+                "front_calls": front_calls
+            },
             message="处理成功"
         )
 
@@ -129,7 +138,7 @@ async def stream_complete(
 
         # 打印请求头信息用于调试
         log.info(f"流式请求头信息: user_id={user_id}, session_id={session_id}")
-        
+
         # 验证必需的header参数
         if not user_id:
             error_data = ApiResult.bad_request(
@@ -141,7 +150,7 @@ async def stream_complete(
                 iter([f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"]),
                 media_type="text/event-stream"
             )
-        
+
         if not session_id:
             error_data = ApiResult.bad_request(
                 message="缺少会话ID，请在请求头中提供session_id",
@@ -152,7 +161,7 @@ async def stream_complete(
                 iter([f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"]),
                 media_type="text/event-stream"
             )
-        
+
         # 返回流式响应
         return StreamingResponse(
             stream_chat_response(request, user_id, session_id),
@@ -190,12 +199,26 @@ async def stream_chat_response(request: ChatRequest, user_id: str, session_id: s
             image_url=request.image_url
         )
 
-        # 构建响应数据
+        # 智能体现在只返回字符串消息，直接使用
+        response_message = result if isinstance(result, str) else str(result)
+        
+        # 检查智能体返回的消息中是否包含"需要拍照"标识
+        front_calls = []
+        
+        # 检查消息中的拍照标识
+        if "需要拍照" in response_message or "[需要拍照]" in response_message:
+            front_calls.append("camera_call")
+            log.info(f"流式响应检测到智能体返回的'需要拍照'标识")
+        
+        # 检查用户原始消息中是否明确提到拍照需求（作为备用检测）
+        elif any(keyword in request.message for keyword in ["拍照", "图片", "照片", "上传图片"]):
+            front_calls.append("camera_call")
+            log.info(f"流式响应检测到用户明确提到拍照需求")
+
+        # 构建响应数据 - 包含front_calls
         response_data = {
-            "type": result.get("type", "general"),
-            "message": result.get("message", str(result.get("result", ""))),
-            "data": result.get("data"),
-            "suggestions": result.get("suggestions")
+            "message": response_message,
+            "front_calls": front_calls
         }
 
         # 使用ApiResult统一封装
@@ -206,12 +229,12 @@ async def stream_chat_response(request: ChatRequest, user_id: str, session_id: s
 
         # 转换为JSON字符串
         response_json = json.dumps(success_response, ensure_ascii=False)
-        
+
         # 逐字符流式输出（打字机效果）
         for i, char in enumerate(response_json):
             # 构建部分响应 - 避免嵌套data字段
-            partial_content = response_json[:i+1]
-            
+            partial_content = response_json[:i + 1]
+
             # 尝试解析部分JSON，如果失败则返回原始内容
             try:
                 if i == len(response_json) - 1:
@@ -242,10 +265,10 @@ async def stream_chat_response(request: ChatRequest, user_id: str, session_id: s
                     "partial": True,
                     "finished": False
                 }
-            
+
             # 发送部分数据
             yield f"data: {json.dumps(partial_data, ensure_ascii=False)}\n\n"
-            
+
             # 控制打字速度（每2-3个字符暂停一下）
             if i % 3 == 0:
                 await asyncio.sleep(0.05)  # 50ms延迟，模拟打字效果
@@ -258,7 +281,7 @@ async def stream_chat_response(request: ChatRequest, user_id: str, session_id: s
         complete_data["finished"] = True
         yield f"data: {json.dumps(complete_data, ensure_ascii=False)}\n\n"
 
-        log.info(f"流式聊天请求处理成功: type={response_data['type']}")
+        log.info(f"流式聊天请求处理成功，front_calls: {front_calls}")
 
     except Exception as e:
         log.error(f"流式响应生成失败: {e}")

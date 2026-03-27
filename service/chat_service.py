@@ -56,19 +56,14 @@ class ChatService:
             is_first_time = self._is_first_time_user(user_id, session_id)
             
             if is_first_time:
-                # 首次进入，返回欢迎信息
-                welcome_result = {
-                    "type": "welcome",
-                    "message": "欢迎使用智能助手！我可以帮您执行任务、管理采购、搜索信息等。请告诉我您需要什么帮助？",
-                    "data": None,
-                    "suggestions": ["我要执行任务", "我要采购商品", "搜索信息"]
-                }
+                # 首次进入，返回欢迎信息（现在只返回消息字符串）
+                welcome_message = "欢迎使用智能助手！我可以帮您执行任务、管理采购、搜索信息等。请告诉我您需要什么帮助？"
                 
                 # 保存首次进入的记录
-                self._save_to_memory(user_id, session_id, message, welcome_result)
+                self._save_to_memory(user_id, session_id, message, {"message": welcome_message})
                 
                 log.info(f"首次进入用户处理完成: user_id={user_id}, session_id={session_id}")
-                return welcome_result
+                return welcome_message
             
             # 使用主智能体处理消息
             # 获取对话历史
@@ -78,19 +73,14 @@ class ChatService:
             result = await self.main_agent.process_message(message, user_id, session_id, image_url, history)
             
             # 保存对话记录到短期记忆
-            self._save_to_memory(user_id, session_id, message, result)
+            self._save_to_memory(user_id, session_id, message, {"message": result})
             
-            log.info(f"聊天请求处理成功: type={result.get('type')}")
+            log.info(f"聊天请求处理成功")
             return result
             
         except Exception as e:
             log.error(f"聊天处理失败: {e}")
-            return {
-                "type": "error",
-                "message": "抱歉，处理您的请求时遇到了问题，请稍后重试。",
-                "data": {"error": str(e)},
-                "suggestions": ["请重新描述您的问题", "尝试简化您的需求"]
-            }
+            return f"抱歉，处理您的请求时遇到了问题，请稍后重试。错误详情：{str(e)}"
     
     def _is_first_time_user(self, user_id: str, session_id: str) -> bool:
         """判断是否为首次进入用户（基于短期记忆）"""

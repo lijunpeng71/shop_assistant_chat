@@ -21,7 +21,7 @@ class ApiResult:
         return {
             "code": 0,
             "message": message,
-            "data": data
+            "data": data or {}
         }
     
     @staticmethod
