@@ -156,7 +156,7 @@ async def stream_complete(
         # 返回流式响应
         return StreamingResponse(
             stream_chat_response(request, user_id, session_id),
-            media_type="text/plain"
+            media_type="text/event-stream"
         )
 
     except Exception as e:
@@ -168,7 +168,7 @@ async def stream_complete(
         error_data["finished"] = True
         return StreamingResponse(
             iter([f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"]),
-            media_type="text/plain"
+            media_type="text/event-stream"
         )
 
 
